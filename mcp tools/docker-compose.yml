@@ -1,0 +1,36 @@
+networks:
+  mcpo-net:
+    driver: bridge
+
+services:
+  mcp-obsidian:
+    image: acuvity/mcp-server-obsidian:0.2.2
+    networks: [mcpo-net]
+    restart: unless-stopped
+    environment:
+      - OBSIDIAN_API_KEY=08bd05d13310a75185efef911fd2a9cc6d355150af65406ce54d376e4907f4d4
+      - OBSIDIAN_HOST=host.docker.internal
+      - OBSIDIAN_PORT=27124
+      - OBSIDIAN_PROTOCOL=https
+    volumes:
+      - ./obsidian.py:/app/.venv/lib/python3.12/site-packages/mcp_obsidian/obsidian.py:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ || curl -sf http://localhost:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  mcpo:
+    image: ghcr.io/open-webui/mcpo:main
+    networks: [mcpo-net]
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    volumes:
+      - ./config.json:/app/config/config.json:ro
+    command: ["--config", "/app/config/config.json"]
+    depends_on:
+      mcp-obsidian:
+        condition: service_healthy
+        restart: true
